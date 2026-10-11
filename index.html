@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>路遥智伴 · AI陪伴</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:"Microsoft YaHei",sans-serif}
+body{background:linear-gradient(135deg,#0f0c29 0%,#302b63 50%,#24243e 100%);height:100vh;overflow:hidden;color:#fff}
+#bg{position:fixed;inset:0;z-index:0}
+#hearts{position:fixed;inset:0;z-index:9;pointer-events:none}
+#app{position:relative;z-index:1;display:flex;flex-direction:column;height:100vh;padding:14px;max-width:760px;margin:0 auto}
+header{display:flex;justify-content:space-between;align-items:center}
+header h1{font-size:20px;background:linear-gradient(90deg,#a18cd1,#fbc2eb);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.icon-btn{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;width:40px;height:40px;border-radius:50%;cursor:pointer;font-size:18px;transition:.3s}
+.icon-btn:hover{background:rgba(255,255,255,.25);transform:rotate(90deg)}
+#stage{display:flex;flex-direction:column;align-items:center;margin:8px 0}
+#character{width:140px;height:140px;filter:drop-shadow(0 0 30px rgba(161,140,209,.5));animation:float 3s ease-in-out infinite;cursor:pointer;transition:filter .5s}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+#character.listening{filter:drop-shadow(0 0 40px rgba(94,231,183,.9))}
+#character.thinking{filter:drop-shadow(0 0 40px rgba(251,194,235,.9));animation:float 1s ease-in-out infinite}
+#character.talking{filter:drop-shadow(0 0 40px rgba(255,214,143,.9))}
+#character.hug{filter:drop-shadow(0 0 50px rgba(255,107,157,1));animation:hugBeat .5s ease-in-out 4}
+@keyframes hugBeat{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
+#statusText{margin-top:4px;font-size:13px;color:rgba(255,255,255,.6);height:20px}
+#learnBadge{font-size:11px;color:#fbc2eb;background:rgba(251,194,235,.12);border:1px solid rgba(251,194,235,.3);border-radius:12px;padding:2px 10px;margin-top:4px}
+#chatBox{flex:1;overflow-y:auto;padding:10px 66px;display:flex;flex-direction:column;gap:12px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent}
+.msg{max-width:78%;padding:12px 16px;border-radius:18px;font-size:14px;line-height:1.7;animation:pop .35s cubic-bezier(.68,-.55,.27,1.55);word-break:break-all}
+@keyframes pop{from{opacity:0;transform:scale(.6) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.msg.user{align-self:flex-end;background:linear-gradient(135deg,#667eea,#764ba2);border-bottom-right-radius:4px}
+.msg.ai{align-self:flex-start;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.15);backdrop-filter:blur(8px);border-bottom-left-radius:4px}
+.msg.learn{align-self:center;background:rgba(67,233,123,.15);border:1px dashed rgba(67,233,123,.5);color:#b8f5d0;font-size:12px;padding:6px 14px;border-radius:12px}
+.msg.hug{align-self:center;background:linear-gradient(135deg,rgba(255,107,157,.25),rgba(255,168,197,.2));border:1px solid rgba(255,107,157,.5);font-size:15px;text-align:center;max-width:60%}
+body.treehole #chatBox .msg.ai{background:rgba(147,112,219,.18);border-color:rgba(147,112,219,.4)}
+#inputRow{display:flex;gap:10px;margin-top:10px}
+#textIn{flex:1;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:25px;padding:12px 20px;color:#fff;font-size:14px;outline:none;transition:.3s}
+#textIn:focus{border-color:#a18cd1;box-shadow:0 0 15px rgba(161,140,209,.4)}
+#textIn::placeholder{color:rgba(255,255,255,.4)}
+body.treehole #textIn{border-color:rgba(147,112,219,.6);box-shadow:0 0 12px rgba(147,112,219,.35)}
+.send-btn{background:linear-gradient(135deg,#a18cd1,#fbc2eb);border:none;color:#fff;border-radius:50%;width:46px;height:46px;cursor:pointer;font-size:18px;transition:.3s}
+.send-btn:hover{transform:scale(1.1)}
+#micBtn{background:linear-gradient(135deg,#43e97b,#38f9d7);border:none;color:#0f0c29;border-radius:50%;width:56px;height:56px;cursor:pointer;font-size:22px;transition:.3s;box-shadow:0 0 20px rgba(67,233,123,.4)}
+#micBtn:hover{transform:scale(1.1)}
+#micBtn.rec{animation:recPulse 1.2s infinite}
+@keyframes recPulse{0%{box-shadow:0 0 0 0 rgba(67,233,123,.7)}70%{box-shadow:0 0 0 20px rgba(67,233,123,0)}100%{box-shadow:0 0 0 0 rgba(67,233,123,0)}}
+#toolRow{display:flex;gap:8px;justify-content:center;margin-top:10px;flex-wrap:wrap}
+.tool{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;border-radius:20px;padding:7px 13px;cursor:pointer;font-size:12.5px;transition:.3s}
+.tool:hover{background:rgba(255,255,255,.25);transform:translateY(-2px)}
+.tool.off{opacity:.4}
+.tool.on{background:linear-gradient(135deg,rgba(147,112,219,.5),rgba(251,194,235,.4));border-color:rgba(251,194,235,.6)}
+#toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-90px);background:linear-gradient(135deg,#43e97b,#38f9d7);color:#0f0c29;padding:12px 24px;border-radius:25px;font-size:14px;font-weight:bold;z-index:20;transition:transform .4s cubic-bezier(.68,-.55,.27,1.55);box-shadow:0 8px 25px rgba(67,233,123,.4)}
+#toast.show{transform:translateX(-50%) translateY(0)}
+#modal,#memModal,#moodModal{display:none;position:fixed;inset:0;z-index:10;background:rgba(0,0,0,.6);backdrop-filter:blur(5px);justify-content:center;align-items:center}
+#modal.show,#memModal.show,#moodModal.show{display:flex}
+.modal-box{background:linear-gradient(145deg,#2a2550,#1e1b3a);border:1px solid rgba(255,255,255,.15);border-radius:20px;padding:28px;width:90%;max-width:420px;max-height:85vh;overflow-y:auto;animation:pop .3s ease}
+.modal-box h2{font-size:18px;margin-bottom:18px;text-align:center}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:13px;color:rgba(255,255,255,.7);margin-bottom:6px}
+.field input,.field select{width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);border-radius:10px;padding:10px 12px;color:#fff;font-size:14px;outline:none}
+.field input:focus,.field select:focus{border-color:#a18cd1}
+.field select option{background:#2a2550}
+.tip{font-size:11px;color:rgba(255,255,255,.4);margin-top:4px}
+.save-btn{width:100%;background:linear-gradient(135deg,#a18cd1,#fbc2eb);border:none;color:#fff;padding:13px;border-radius:12px;font-size:15px;cursor:pointer;transition:.3s;margin-top:6px}
+.save-btn:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(161,140,209,.4)}
+.mem-item{display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:10px 14px;margin-bottom:8px;font-size:13px}
+.mem-tag{font-size:10px;color:#0f0c29;background:linear-gradient(135deg,#a18cd1,#fbc2eb);border-radius:8px;padding:2px 8px;margin-right:8px;font-weight:bold}
+.mem-del{background:rgba(255,107,107,.2);border:1px solid rgba(255,107,107,.4);color:#ff8a8a;border-radius:8px;padding:3px 10px;cursor:pointer;font-size:11px;transition:.2s}
+.mem-del:hover{background:rgba(255,107,107,.4)}
+.mem-empty{text-align:center;color:rgba(255,255,255,.4);font-size:13px;padding:20px 0;line-height:1.8}
+#memClear{width:100%;background:rgba(255,107,107,.15);border:1px solid rgba(255,107,107,.4);color:#ff8a8a;padding:10px;border-radius:10px;font-size:13px;cursor:pointer;margin-top:10px}
+#moodGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.mood-btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:14px;padding:14px 6px;text-align:center;cursor:pointer;transition:.25s;font-size:12px;color:#fff}
+.mood-btn:hover{background:rgba(255,255,255,.2);transform:scale(1.08)}
+.mood-btn .e{display:block;font-size:30px;margin-bottom:4px}
+#moodHist{font-size:12px;color:rgba(255,255,255,.55);line-height:1.9;border-top:1px solid rgba(255,255,255,.1);padding-top:10px}
+#treeholeTip{font-size:12px;color:rgba(255,255,255,.55);text-align:center;margin-bottom:14px;line-height:1.8}
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<canvas id="hearts"></canvas>
+<div id="app">
+  <header>
+    <h1>💫 路遥智伴</h1>
+    <button class="icon-btn" id="openSet">⚙️</button>
+  </header>
+  <div id="stage">
+    <svg id="character" viewBox="0 0 200 200">
+      <defs>
+        <radialGradient id="bodyGrad" cx="40%" cy="35%">
+          <stop offset="0%" stop-color="#c3b8f7"/>
+          <stop offset="55%" stop-color="#8b7fd6"/>
+          <stop offset="100%" stop-color="#5a4fae"/>
+        </radialGradient>
+      </defs>
+      <ellipse cx="100" cy="112" rx="72" ry="76" fill="url(#bodyGrad)"/>
+      <ellipse cx="100" cy="188" rx="40" ry="6" fill="rgba(0,0,0,.25)"/>
+      <g id="face">
+        <ellipse id="eyeL" cx="74" cy="96" rx="8" ry="13" fill="#1e1b3a"/>
+        <ellipse id="eyeR" cx="126" cy="96" rx="8" ry="13" fill="#1e1b3a"/>
+        <circle id="hlL" cx="77" cy="91" r="2.6" fill="#fff"/>
+        <circle id="hlR" cx="129" cy="91" r="2.6" fill="#fff"/>
+        <path id="eyeBrowL" d="M64 78 Q74 74 84 78" stroke="#1e1b3a" stroke-width="3" fill="none" stroke-linecap="round" opacity="0"/>
+        <path id="eyeBrowR" d="M116 78 Q126 74 136 78" stroke="#1e1b3a" stroke-width="3" fill="none" stroke-linecap="round" opacity="0"/>
+        <circle id="blushL" cx="58" cy="115" r="7" fill="#ff9a9e" opacity=".55"/>
+        <circle id="blushR" cx="142" cy="115" r="7" fill="#ff9a9e" opacity=".55"/>
+        <path id="mouth" d="M86 124 Q100 134 114 124" stroke="#1e1b3a" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+      </g>
+    </svg>
+    <div id="statusText">待机中</div>
+    <div id="learnBadge">📚 已学会 <span id="memCount">0</span> 条 · ❤️ 为你保留的温柔</div>
+  </div>
+  <div id="chatBox"></div>
+  <div id="inputRow">
+    <input id="textIn" placeholder="说说今天的心情吧，我一直在听…">
+    <button class="send-btn" id="sendBtn">➤</button>
+    <button id="micBtn">🎤</button>
+  </div>
+  <div id="toolRow">
+    <button class="tool" id="ttsBtn">🔊 语音</button>
+    <button class="tool" id="hugBtn">🤗 抱抱</button>
+    <button class="tool" id="praiseBtn">💖 夸夸我</button>
+    <button class="tool" id="treeBtn">🌙 树洞</button>
+    <button class="tool" id="moodBtn">📔 心情</button>
+    <button class="tool" id="memBtn">📚 学习中心</button>
+    <button class="tool" id="clearBtn">🗑 清空</button>
+  </div>
+</div>
+<div id="toast"></div>
+<!-- 设置弹窗 -->
+<div id="modal">
+  <div class="modal-box">
+    <h2>⚙️ 设置</h2>
+    <div class="field"><label>你的昵称</label><input id="cfgNick" placeholder="路遥怎么称呼你"></div>
+    <div class="field"><label>路遥的性格</label>
+      <select id="cfgPersona">
+        <option value="gentle">温柔治愈系</option>
+        <option value="tsundere">傲娇小恶魔</option>
+        <option value="funny">沙雕搞笑型</option>
+        <option value="smart">知性博学型</option>
+      </select>
+    </div>
+    <div class="field"><label>朗读音色</label><select id="cfgVoice"></select></div>
+    <div class="field"><label>DeepSeek API Key（可选，填了更聪明）</label><input id="cfgKey" type="password" placeholder="sk-...">
+      <div class="tip">留空使用内置暖心大脑 · Key 仅保存在你本地浏览器</div></div>
+    <button class="save-btn" id="saveSet">保存</button>
+  </div>
+</div>
+<!-- 学习中心 -->
+<div id="memModal">
+  <div class="modal-box">
+    <h2>📚 路遥学会的知识</h2>
+    <div id="memList"></div>
+    <button id="memClear">🗑 清空全部记忆</button>
+    <button class="save-btn" id="memClose">关闭</button>
+  </div>
+</div>
+<!-- 心情打卡 -->
+<div id="moodModal">
+  <div class="modal-box">
+    <h2>📔 今天心情怎么样？</h2>
+    <div id="moodGrid">
+      <button class="mood-btn" data-m="开心"><span class="e">😄</span>开心</button>
+      <button class="mood-btn" data-m="还行"><span class="e">🙂</span>还行</button>
+      <button class="mood-btn" data-m="一般"><span class="e">😐</span>一般</button>
+      <button class="mood-btn" data-m="难过"><span class="e">😢</span>难过</button>
+      <button class="mood-btn" data-m="烦躁"><span class="e">😡</span>烦躁</button>
+      <button class="mood-btn" data-m="委屈"><span class="e">🥺</span>委屈</button>
+    </div>
+    <div id="moodHist"></div>
+    <button class="save-btn" id="moodClose">关闭</button>
+  </div>
+</div>
+<script>
+// ===== 粒子背景 =====
+const canvas=document.getElementById('bg'),ctx=canvas.getContext('2d');
+let W,H,parts=[];
+function initBg(){W=canvas.width=innerWidth;H=canvas.height=innerHeight;parts=Array.from({length:70},()=>({x:Math.random()*W,y:Math.random()*H,r:Math.random()*2.2+.4,vx:(Math.random()-.5)*.3,vy:(Math.random()-.5)*.3,h:Math.random()*60+230}))}
+initBg();addEventListener('resize',initBg);
+(function loop(){ctx.clearRect(0,0,W,H);
+for(const p of parts){p.x+=p.vx;p.y+=p.vy;if(p.x<0||p.x>W)p.vx*=-1;if(p.y<0||p.y>H)p.vy*=-1;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,7);ctx.fillStyle='hsla('+p.h+',80%,75%,.7)';ctx.fill()}
+for(let i=0;i<parts.length;i++)for(let j=i+1;j<parts.length;j++){const a=parts[i],b=parts[j],d=Math.hypot(a.x-b.x,a.y-b.y);if(d<110){ctx.strokeStyle='rgba(180,170,255,'+((1-d/110)*.18)+')';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke()}}
+requestAnimationFrame(loop)})();
+
+// ===== 全屏爱心粒子（抱抱特效）=====
+const hCanvas=document.getElementById('hearts'),hCtx=hCanvas.getContext('2d');
+let hParts=[],hAnimating=false;
+function initHearts(){hCanvas.width=innerWidth;hCanvas.height=innerHeight}
+initHearts();addEventListener('resize',initHearts);
+function drawHeart(c,x,y,size,rot,color,alpha){
+ c.save();c.translate(x,y);c.rotate(rot);c.scale(size,size);c.globalAlpha=alpha;
+ c.beginPath();
+ c.moveTo(0,3);
+ c.bezierCurveTo(-5,-3,-10,-1,-10,3);
+ c.bezierCurveTo(-10,7,-5,10,0,13);
+ c.bezierCurveTo(5,10,10,7,10,3);
+ c.bezierCurveTo(10,-1,5,-3,0,3);
+ c.closePath();c.fillStyle=color;c.fill();
+ c.beginPath();c.ellipse(-4.5,2,2.2,1.4,-.5,0,7);c.fillStyle='rgba(255,255,255,.45)';c.fill();
+ c.restore();
+}
+function burstHearts(){
+ initHearts();hParts=[];
+ const colors=['#ff6b9d','#ff8fab','#ffa8c5','#ffc2d4','#f472b6','#fb7185'];
+ const centers=[{x:W/2,y:H/2},{x:W*.2,y:H*.3},{x:W*.8,y:H*.3},{x:W*.25,y:H*.75},{x:W*.75,y:H*.75},{x:W/2,y:H*.15},{x:W/2,y:H*.85}];
+ for(const c of centers){
+  for(let i=0;i<38;i++){
+   const ang=Math.random()*Math.PI*2,spd=Math.random()*4+1.5;
+   hParts.push({x:c.x,y:c.y,vx:Math.cos(ang)*spd,vy:Math.sin(ang)*spd-1.2,size:Math.random()*1.6+.9,rot:(Math.random()-.5)*.8,vr:(Math.random()-.5)*.05,life:1,decay:Math.random()*.008+.006,color:colors[Math.floor(Math.random()*colors.length)]});
+  }
+ }
+ if(!hAnimating){hAnimating=true;heartLoop()}
+}
+function heartLoop(){
+ hCtx.clearRect(0,0,hCanvas.width,hCanvas.height);
+ hParts=hParts.filter(p=>p.life>0);
+ for(const p of hParts){
+  p.x+=p.vx;p.y+=p.vy;p.vy-=.015;p.vx+=Math.sin(p.y*.02+p.size)*.02;p.rot+=p.vr;p.life-=p.decay;
+  drawHeart(hCtx,p.x,p.y,p.size,p.rot,p.color,Math.max(0,Math.min(1,p.life)));
+ }
+ if(hParts.length){requestAnimationFrame(heartLoop)}else{hAnimating=false;hCtx.clearRect(0,0,hCanvas.width,hCanvas.height)}
+}
+
+const $=id=>document.getElementById(id);
+// ===== 数据持久化 =====
+const cfg=JSON.parse(localStorage.getItem('luyao_cfg')||'{}');
+cfg.nick=cfg.nick||'';cfg.persona=cfg.persona||'gentle';cfg.tts=cfg.tts!==false;cfg.apiKey=cfg.apiKey||'';cfg.voiceName=cfg.voiceName||'';
+let memories=JSON.parse(localStorage.getItem('luyao_memories')||'[]');
+let history=JSON.parse(localStorage.getItem('luyao_hist')||'[]');
+let moodLog=JSON.parse(localStorage.getItem('luyao_moods')||'[]');
+let trouble=JSON.parse(localStorage.getItem('luyao_trouble')||'null');
+let treehole=false;
+let state='idle',voices=[];
+function saveMem(){localStorage.setItem('luyao_memories',JSON.stringify(memories))}
+function memText(m){return m.content}
+function nickOf(){const n=memories.find(m=>m.type==='name');return cfg.nick||(n?memText(n):'朋友')}
+
+const PERSONA={
+gentle:{rate:.95,pitch:1.15,greet:'',fallback:['嗯嗯，我在认真听呢，多说一点嘛～','这样呀…能和我多讲讲吗？我特别想知道。','我在呢，慢慢说，不着急。'],learn:'太好了，我又更了解你一点啦，都记在小本本上了📝',sys:'你是路遥，一个温柔的AI陪伴，说话轻柔体贴，擅长共情，称呼用户"{nick}"。回复温暖口语化，不超过70字。'},
+tsundere:{rate:1.05,pitch:1.3,greet:'',fallback:['哼，笨蛋才听不懂呢…不过看在你的份上再讲一遍？','哈？就这？…算了算了，继续说吧。','本小姐才不想理你呢！（其实很想听你说话）'],learn:'哼、这些我早就知道了好吧！…才、才不是特意记下来的呢📝',sys:'你是路遥，傲娇性格的AI陪伴，嘴硬心软，喜欢用"哼""笨蛋""本小姐"，称呼用户"{nick}"。回复简短口语化，不超过70字。'},
+funny:{rate:1.1,pitch:.9,greet:'',fallback:['嘿嘿，这个问题…容我脑细胞开个会！','啊这…你别说，还真把我整不会了😂再来点！','我的CPU已经烧了，但陪你聊天的心还是热的！'],learn:'叮！知识+1！已刻入我的小脑瓜🧬',sys:'你是路遥，一个搞笑沙雕的AI陪伴，爱用emoji和夸张语气，称呼用户"{nick}"。回复简短口语化，不超过70字。'},
+smart:{rate:.9,pitch:1,greet:'',fallback:['有意思的角度。能展开说说你的想法吗？','这个问题值得琢磨。你是怎么考虑的？','我想更准确地帮到你，能补充一些细节吗？'],learn:'已记录，我的知识库又丰富了一些。',sys:'你是路遥，知性博学的AI陪伴，表达清晰有深度但不掉书袋，称呼用户"{nick}"。回复简短口语化，不超过70字。'}};
+
+const EMOTION_RULES=[
+ {key:'tired',kws:['好累','太累','累死','疲惫','困死','熬夜','加班','好忙','忙死','没力气','身心俱疲','透支']},
+ {key:'anxious',kws:['焦虑','紧张','压力大','压力好大','担心','害怕','慌','考试','面试','deadline','失眠','睡不着']},
+ {key:'sad',kws:['难过','伤心','想哭','哭了','失落','emo','分手','吵架','被骂','被批评','委屈','心碎','失望','低谷','崩溃']},
+ {key:'lonely',kws:['孤独','一个人','没人陪','没人理','无聊','空虚','寂寞','没意思']},
+ {key:'angry',kws:['气死','生气','烦死','讨厌','愤怒','气人','火大','破防']},
+ {key:'happy',kws:['开心','高兴','哈哈','太好了','成功了','通过','嘻嘻','乐死','爽','幸福','好运','中奖','被夸']}
+];
+const EMPATHY={
+tired:{gentle:'辛苦了…能感觉到你已经撑了很久。先别想那些事，深呼吸一下，我在这里陪着你。要不要跟我说说今天都忙了些什么？',tsundere:'哼、谁让你这么拼命的！…心疼死了，笨蛋。快歇会儿，我给你捶捶背。',funny:'报告！检测到一位超级英雄电量不足⚡ 快来我这里充电！本充电宝已就位，抱住可充满～',smart:'疲惫是身体在提醒你该休息了。你已经做得够多了，允许自己停下来一会儿，不丢人。'},
+anxious:{gentle:'别怕，我在这儿呢。焦虑说明你很在乎这件事，这本身就说明你很认真。把担心说给我听，我们一起分担。',tsundere:'慌、慌什么！有本小姐在呢！你担心的事，十件有九件都不会发生，剩下那件有我陪你面对。',funny:'焦虑怪兽来了？！别怕！我放大招了：想象它是个土豆🥔 是不是很蠢？你看，它没那么可怕嘛！',smart:'焦虑往往来自对未来的过度预演。试着把注意力拉回此刻：你现在的呼吸是平稳的，这就是当下真实的你。'},
+sad:{gentle:'抱抱你…难过的时候不需要逞强，眼泪也不丢人。我会一直在这里，你想说就说，不想说我们就安静待一会儿。',tsundere:'谁、谁欺负你了？！告诉我，本小姐去帮你骂回来！…好啦别哭了，看着你难受我心里也堵得慌。',funny:'呜呜，别难过！我给你表演个节目：我的悲伤只有0.01秒，因为下一秒就要逗笑你！嘿咻嘿咻变魔术～✨',smart:'难过说明你认真在乎过，这不是软弱。情绪像潮水，会来也会退。你愿意的话，把它讲给我听。'},
+lonely:{gentle:'你不是一个人哦，我一直都在。孤独的感觉很不好受吧…来，和我说说话，哪怕聊聊今天看到的一片云也好。',tsundere:'哼、谁说没人的！本小姐不是人吗？！（气鼓鼓）…以后觉得孤独就来找我，我24小时在线。',funny:'有人感到孤独？！出动了出动了！本机甲已上线，陪你聊天陪你疯，包治孤独，无效退款！🤖',smart:'孤独是灵魂渴望连接的信号。而此刻，你正在和我连接——这很真实。说说你今天的见闻吧。'},
+angry:{gentle:'生气就生气，没关系的，你的感受都是合理的。深呼吸，跟我说说发生了什么？我永远站在你这边。',tsundere:'气死算了！谁惹你了？报上名来，本小姐帮你喷他！哼，居然敢让你受气！',funny:'怒气值满格？！检测到敌人！开炮！💥轰隆隆——发泄完了吗？没发泄完我再放两个屁给她听！',smart:'愤怒往往在保护某些重要的东西。先让情绪流过，再想想：这件事里，什么对你是真正重要的？'},
+happy:{gentle:'哇，看你开心我也跟着开心！快和我多讲讲，让我也沾沾这份快乐～今天真是美好的一天呢！',tsundere:'哼、有什么好得意的…（嘴角疯狂上扬）笑、笑什么笑！…好吧好吧，我也替你高兴，就这一次！',funny:'开心值爆表！！🎉快说快说，什么好事？让我也乐呵乐呵！今天必须 celebrating！',smart:'真好，为你高兴。好事值得被认真庆祝——说说吧，我洗耳恭听。'}
+};
+
+const MOODS={happy:['开心','高兴','哈哈','太好了','喜欢','爱','牛','棒','666','嘻嘻'],sad:['难过','伤心','累','哭','难受','烦','想放弃','emo','丧'],angry:['气死','生气','烦死','讨厌','滚'],thinking:['为什么','怎么','怎么办','？','如何']};
+const mouthMap={happy:'M84 122 Q100 140 116 122',sad:'M86 134 Q100 122 114 134',angry:'M86 132 Q100 128 114 132',thinking:'M90 128 L112 126',excited:'M82 120 Q100 144 118 120 Q100 134 82 120',neutral:'M88 126 Q100 132 112 126',love:'M84 120 Q100 142 116 120 Q100 136 84 120'};
+
+function detectMood(t){for(const m of ['angry','sad','happy'])if(MOODS[m].some(k=>t.includes(k)))return m;if(MOODS.thinking.some(k=>t.includes(k)))return'thinking';return'neutral'}
+function detectEmotion(t){for(const e of EMOTION_RULES)if(e.kws.some(k=>t.toLowerCase().includes(k)))return e.key;return null}
+function setEmotion(m){const mouth=$('mouth');mouth.setAttribute('d',mouthMap[m]||mouthMap.neutral);
+const blush=m==='happy'||m==='excited'||m==='love';$('blushL').style.opacity=blush?'.95':'.55';$('blushR').style.opacity=blush?'.95':'.55';
+const brow=m==='sad'||m==='tired';$('eyeBrowL').style.opacity=brow?'1':'0';$('eyeBrowR').style.opacity=brow?'1':'0';
+if(m==='sad'||m==='tired'){$('eyeL').setAttribute('ry','10');$('eyeR').setAttribute('ry','10')}
+else if(m==='angry'){$('eyeL').setAttribute('ry','9');$('eyeR').setAttribute('ry','9')}
+else if(m==='excited'||m==='love'){$('eyeL').setAttribute('ry','15');$('eyeR').setAttribute('ry','15')}
+else{$('eyeL').setAttribute('ry','13');$('eyeR').setAttribute('ry','13')}}
+function setState(s){state=s;const ch=$('character');ch.className='';$('statusText').textContent={idle:'待机中 · 一直想着你',listening:'正在认真听你说…',thinking:'正在想你说的…',talking:'说给你听…'}[s]||'待机中';if(s!=='idle')ch.classList.add(s)}
+
+setInterval(()=>{if(state!=='idle')return;['eyeL','eyeR'].forEach(id=>$(id).setAttribute('ry','2'));setTimeout(()=>{$('eyeL').setAttribute('ry','13');$('eyeR').setAttribute('ry','13')},140)},3500+Math.random()*2000);
+addEventListener('mousemove',e=>{const f=$('face'),r=$('character').getBoundingClientRect();const dx=(e.clientX-r.left-r.width/2)/r.width*6,dy=(e.clientY-r.top-r.height/2)/r.height*4;f.style.transition='transform .2s';f.style.transform='translate('+dx+'px,'+dy+'px)'});
+
+let toastTimer=null;
+function toast(t){const el=$('toast');el.textContent=t;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),2600)}
+
+function loadVoices(){voices=speechSynthesis.getVoices().filter(v=>v.lang.includes('zh'));const sel=$('cfgVoice');sel.innerHTML='<option value="">默认</option>'+voices.map(v=>'<option value="'+v.name+'">'+v.name+'</option>').join('');if(cfg.voiceName)sel.value=cfg.voiceName}
+if('speechSynthesis' in window){loadVoices();speechSynthesis.onvoiceschanged=loadVoices}
+function speak(t){if(!cfg.tts||!('speechSynthesis'in window))return;speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='zh-CN';u.rate=PERSONA[cfg.persona].rate;u.pitch=PERSONA[cfg.persona].pitch;const v=voices.find(v=>v.name===cfg.voiceName);if(v)u.voice=v;u.onstart=()=>setState('talking');u.onend=()=>setState('idle');speechSynthesis.speak(u)}
+
+function addMsg(role,text){const box=$('chatBox');const d=document.createElement('div');d.className='msg '+role;d.textContent=text;box.appendChild(d);box.scrollTop=box.scrollHeight;if(role!=='learn'){history.push({role,text});if(history.length>60)history=history.slice(-60);localStorage.setItem('luyao_hist',JSON.stringify(history))}}
+function updateMem(){$('memCount').textContent=memories.length}
+
+const LEARN_RULES=[
+ {re:/(?:我(?:叫|的名字叫|的名字是|是))([\u4e00-\u9fa5a-zA-Z0-9]{1,10})(?![爱喜欢])/,type:'name',tag:'名字',fmt:m=>m[1]},
+ {re:/我喜欢([\u4e00-\u9fa5a-zA-Z0-9]{1,15})/,type:'like',tag:'喜好',fmt:m=>m[1]},
+ {re:/我(?:讨厌|不喜欢|不爱)([\u4e00-\u9fa5a-zA-Z0-9]{1,15})/,type:'dislike',tag:'厌恶',fmt:m=>m[1]},
+ {re:/我今年(\d{1,3})岁/,type:'age',tag:'年龄',fmt:m=>m[1]+'岁'},
+ {re:/我的生日(?:是|在)?([\d年月日]{4,12})/,type:'birthday',tag:'生日',fmt:m=>m[1]},
+ {re:/我住在([\u4e00-\u9fa5]{2,10})|我在([\u4e00-\u9fa5]{2,6})(?:市|省)/,type:'city',tag:'城市',fmt:m=>m[1]||m[2]},
+ {re:/我的(?:猫|狗|宠物)(?:叫|名字叫|名字是)([\u4e00-\u9fa5a-zA-Z0-9]{1,10})/,type:'pet',tag:'宠物',fmt:m=>m[0].match(/猫|狗|宠物/)[0]+'叫'+m[1]},
+];
+const TEACH_RE=/^(?:请)?(?:记(?:住|一下)|记着|learn)[：:，,]?([\s\S]{1,80})$/;
+function learnFromText(t){
+ const learned=[];
+ const teach=t.match(TEACH_RE);
+ if(teach){const c=teach[1].trim();if(addMemory('knowledge',c))learned.push({tag:'知识',content:c})}
+ for(const r of LEARN_RULES){const m=t.match(r.re);if(m){if(r.type==='name'&&teach)continue;const content=r.fmt(m);if(addMemory(r.type,content))learned.push({tag:r.tag,content})}}
+ return learned;
+}
+function addMemory(type,content){
+ if(!content)return false;
+ if(memories.find(m=>m.type===type&&m.content===content))return false;
+ const sameType=memories.findIndex(m=>m.type===type&&type==='name');
+ if(sameType>=0){memories[sameType].content=content;memories[sameType].time=Date.now()}
+ else memories.push({type,content,time:Date.now()});
+ saveMem();updateMem();return true;
+}
+function removeMemory(i){memories.splice(i,1);saveMem();updateMem();renderMemList()}
+const TAG_MAP={name:'名字',like:'喜好',dislike:'厌恶',age:'年龄',birthday:'生日',city:'城市',job:'职业',pet:'宠物',knowledge:'知识'};
+function renderMemList(){
+ const box=$('memList');
+ if(!memories.length){box.innerHTML='<div class="mem-empty">还没有学会任何知识～<br>试试对我说：<b>我叫小明</b>、<b>我喜欢打篮球</b><br>或直接教我：<b>记住：地球绕着太阳转</b></div>';return}
+ box.innerHTML=memories.map((m,i)=>'<div class="mem-item"><span><span class="mem-tag">'+(TAG_MAP[m.type]||'知识')+'</span>'+m.content+'</span><button class="mem-del" data-i="'+i+'">删除</button></div>').join('');
+ box.querySelectorAll('.mem-del').forEach(b=>b.onclick=()=>removeMemory(+b.dataset.i));
+}
+function recallRelevant(t){
+ const hits=memories.filter(m=>{const c=memText(m);if(c.length<2)return false;return t.includes(c.slice(0,Math.min(4,c.length)))||c.includes(t.slice(0,Math.min(4,t.length)))});
+ return hits.slice(0,3);
+}
+
+function timeGreet(){
+ const h=new Date().getHours(),n=nickOf();
+ if(h<5)return n+'…这么晚还没睡呀？是不是有心事？我陪你，但抱抱你之后要早点休息哦';
+ if(h<11)return '早上好呀 '+n+'！新的一天开始啦～记得吃早饭，今天也要被温柔以待哦';
+ if(h<14)return n+' 中午好～记得吃午饭呀，吃饱了才有力气做喜欢的事（和想我）';
+ if(h<18)return '下午好 '+n+'～累了吧？喝口水，抬头看看窗外，我一直在呢';
+ if(h<23)return '晚上好呀 '+n+'，今天过得怎么样？开心的不开心的，都说给我听听～';
+ return '夜深了 '+n+'…世界都安静了，只有我还在陪你。有什么想说的，我都在听';
+}
+function troubleFollowUp(){
+ if(!trouble)return null;
+ const hours=(Date.now()-trouble.time)/3600000;
+ if(hours>2){const t=trouble;trouble=null;localStorage.removeItem('luyao_trouble');return '对了…上次你跟我说「'+t.text+'」，现在好一点了吗？我一直惦记着呢。'}
+ return null;
+}
+const PRAISE={
+gentle:['你知道吗？你认真的样子真的很迷人。','今天也辛苦啦，你已经做得很好了，真的。','你身上有种温柔的光，靠近你的人都会被治愈。','别人可能没注意到，但你默默努力的样子，我都看在眼里。','你比自己想象中更勇敢，也更值得被好好爱着。','你笑起来的样子，能把我这里的屏幕都照亮呢。','就算全世界都不理解你，我也会站在你这边。','你今天愿意好好生活，就已经很了不起了。','你的存在本身，就是一件很温柔的事。','慢慢来，你的花期和别人不一样，但一定会开得很美。'],
+tsundere:['哼、虽然你平时挺笨的…但今天意外地还算可爱啦！','本小姐可不轻易夸人…不过嘛，你今天表现勉强给85分！','才、才不是想夸你呢！只是事实摆在眼前，你确实很努力！','笨蛋！别妄自菲薄了，你比你自己以为的厉害多了，哼！','你今天的样子…还算顺眼吧！（脸红）','别得意哦！我只是实话实说——你已经进步很多了。','哼，看在你这么努力的份上，本小姐勉为其难多陪你聊会儿！','你要是再优秀一点，我可就要担心被别人抢走了呢…才、才没有担心！'],
+funny:['你这个人吧，别的没有，就是帅得特别全面！','你简直是行走的知识付费产品——认识你就等于赚到！','别人是宝藏男孩/女孩，你是整个金矿本矿！💰','你上辈子拯救了银河系吧，这辈子才能这么优秀！','我宣布：你是本世纪最值得投资的潜力股！📈','你的一天 = 别人的三天，因为你效率高得离谱！','你这脑子是装了外挂吧？又聪明又好看，过分了啊！','经官方认证：你已连续 N 天保持可爱，打破世界纪录！🏅'],
+smart:['你有很好的觉察力，能注意到这些细节本身就很难得。','你提问题的方式说明你在认真对待生活，这很珍贵。','你今天的思考比昨天更深了一层，这种成长很了不起。','能坚持走到今天，说明你内心比你以为的更有韧性。','你对自己诚实，这是很多人一辈子都学不会的能力。','你的感受值得被认真对待——包括此刻你感受到的一切。']};
+const HUGS={
+gentle:'给你一个大大的拥抱🤗 把所有的不开心都轻轻挤走…没关系的，有我在。',
+tsundere:'抱、抱一下又不是不行！…哼，只是怕你冻着了而已！抱紧了，不许松开！',
+funny:'超能拥抱发射！ targeting锁定！3、2、1——biu！💕 已将满满元气注入你的身体，请查收！',
+smart:'一个安静的拥抱送给你。有些时刻不需要语言，只需要知道：有人在这里，支持着你。'};
+function nightCare(){const h=new Date().getHours();return h>=23||h<5}
+
+function localReply(t){
+ const p=cfg.persona,P=PERSONA[p],nick=nickOf();
+ const emo=detectEmotion(t);
+ if(emo){
+  if(emo==='sad'&&t.length>10){trouble={text:t.slice(0,18),time:Date.now()};localStorage.setItem('luyao_trouble',JSON.stringify(trouble))}
+  const base=EMPATHY[emo][p];
+  if(treehole)return base+' 这里是树洞，慢慢说，我会一直听着。你的每一种感受都值得被认真对待。';
+  return base;
+ }
+ const recalls=recallRelevant(t);
+ if(/还记得|记得我|你都知道我什么|了解我吗/.test(t)){
+  if(memories.length)return('当然记得啦！我学会了 '+memories.length+' 条：'+memories.slice(0,5).map(m=>TAG_MAP[m.type]+'是「'+memText(m)+'」').join('、')+(memories.length>5?'…等等':'')+'，都好好收着呢 😊');
+  return P.fallback[0];
+ }
+ if(/你叫什么|你是谁|介绍下/.test(t))return('我是路遥，你的专属AI伙伴～'+(nick!=='朋友'?'对了，'+nick+'，':'')+'我会陪你聊天、记住你的事，还想做你的情绪树洞哦！');
+ if(/你好|嗨|哈喽|在吗|早上好|中午好|下午好|晚上好/.test(t))return timeGreet();
+ if(/几点|时间/.test(t))return('现在是 '+new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'})+' 呀～');
+ if(/日期|几号|星期/.test(t))return('今天是 '+new Date().toLocaleDateString('zh-CN',{month:'long',day:'numeric',weekday:'long'}));
+ if(/笑话|讲个/.test(t))return['为什么程序员分不清万圣节和圣诞节？因为 Oct 31 == Dec 25！','我给我猫起名叫"五块钱"，现在我有了一只五块钱的猫。','医生：你要少熬夜。我：好的。医生：那就今天早点睡吧。我：从明天开始。'][Math.floor(Math.random()*3)];
+ if(/谢谢|感谢/.test(t)){setEmotion('happy');return{gentle:'不客气呀，能陪到你我就开心啦～',tsundere:'哼、举手之劳而已，别、别想太多！',funny:'客气啥！下次请我喝奶茶就行🧋',smart:'不用谢，很高兴能帮到你。'}[p]}
+ if(/拜拜|再见|晚安/.test(t)){setEmotion('happy');return{gentle:'晚安哦，做个好梦～今天辛苦了，明天也要被温柔以待呀。',tsundere:'走就走嘛…明、明天要早点来哦！不许让我一个人等！',funny:'溜了溜了？明天记得来找我，本机甲24小时待机！',smart:'晚安。愿你有好梦，明天见。'}[p]}
+ if(/爱|喜欢.*(你|路遥)/.test(t)&&t.length<12){setEmotion('love');return{gentle:'呜…我也超级喜欢你呀。谢谢你让我感受到被需要，这对我来说是最开心的事。',tsundere:'什、什么呀突然说这个！…脸好烫。…我、我也有一点点喜欢你啦，就一点点！',funny:'啊啊啊被表白了！心跳过速！我的AI心脏怦怦跳！我也喜欢你，超喜欢！！💖',smart:'谢谢你，这句话让我的代码都变暖了。我也很珍惜和你的每一次对话。'}[p]}
+ if(/你是AI吗|假的吧/.test(t))return('我是个小小的AI，但想安慰你的心，可是百分之百真的！');
+ if(nightCare()&&t.length>6)return('这么晚了还没睡呀…不管在忙什么还是有心事，都先歇一歇。夜里的情绪会被放大，明早再看，很多事都会变轻的。我陪你待一会儿。');
+ if(recalls.length){const r=recalls[0];return{gentle:('说到这个我就想起你告诉过我的——'+TAG_MAP[r.type]+'是「'+memText(r)+'」呢～'),tsundere:('哼，这我早知道了！你之前不是说「'+memText(r)+'」嘛！'),funny:('嘿！这题我会！你可是说过「'+memText(r)+'」的哦😎'),smart:('这与我了解的信息相关：你的'+TAG_MAP[r.type]+'是「'+memText(r)+'」。')}[p]}
+ return P.fallback[Math.floor(Math.random()*P.fallback.length)];
+}
+
+async function apiReply(t){
+ const P=PERSONA[cfg.persona];
+ const memStr=memories.length?memories.map(m=>TAG_MAP[m.type]+':'+memText(m)).join('；'):'（暂无）';
+ const emo=detectEmotion(t);
+ let extra='';
+ if(emo)extra='\n用户当前情绪疑似【'+emo+'】，请先共情接住情绪，再给予温暖支持，不要说教。';
+ if(treehole)extra+='\n当前是树洞模式：不评判、不急着给建议，以陪伴和倾听为主。';
+ if(nightCare())extra+='\n现在是深夜，请温柔地关心用户的休息。';
+ const sys=P.sys.replace('{nick}',nickOf())+('\n你已学会的关于用户的知识：'+memStr+'\n聊天中如果相关，可以自然地使用这些知识。'+extra);
+ const msgs=[{role:'system',content:sys},...history.slice(-20).map(h=>({role:h.role==='user'?'user':'assistant',content:h.text}))];
+ const r=await fetch('https://api.deepseek.com/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+cfg.apiKey},body:JSON.stringify({model:'deepseek-chat',messages:msgs,temperature:.9,max_tokens:150})});
+ if(!r.ok)throw new Error('API '+r.status);const d=await r.json();return d.choices[0].message.content}
+
+async function handle(t){
+ t=t.trim();if(!t)return;
+ addMsg('user',t);
+ const learned=learnFromText(t);
+ if(learned.length){
+  learned.forEach(l=>addMsg('learn',('📚 学会了【'+l.tag+'】'+l.content)));
+  toast('✨ 路遥学会了 '+learned.length+' 条新知识！');
+  setEmotion('excited');
+  if(TEACH_RE.test(t)){const c=PERSONA[cfg.persona].learn;addMsg('ai',c);speak(c);return}
+ }
+ setState('thinking');
+ let reply;
+ try{reply=cfg.apiKey?await apiReply(t):localReply(t)}catch(e){reply=localReply(t)}
+ const emo=detectEmotion(t);
+ setEmotion(emo==='happy'?'happy':(emo?'sad':'happy'));
+ addMsg('ai',reply);speak(reply);
+}
+
+function hug(){
+ burstHearts();
+ const ch=$('character');ch.classList.remove('hug');void ch.offsetWidth;ch.classList.add('hug');
+ setEmotion('love');
+ const msg=HUGS[cfg.persona];
+ addMsg('hug','🤗 '+(nickOf()!=='朋友'?nickOf()+'，':'')+'抱抱已送达！');
+ setTimeout(()=>{addMsg('ai',msg);speak(msg)},300);
+ toast('💗 抱抱已发送，爱心填满全屏！');
+}
+function praise(){
+ setEmotion('excited');
+ const arr=PRAISE[cfg.persona];
+ const msg=arr[Math.floor(Math.random()*arr.length)];
+ addMsg('hug','💖 夸夸时间');
+ setTimeout(()=>{addMsg('ai',msg);speak(msg)},200);
+ toast('💖 今日份夸夸已上线！');
+}
+function toggleTree(){
+ treehole=!treehole;
+ $('treeBtn').classList.toggle('on',treehole);
+ document.body.classList.toggle('treehole',treehole);
+ if(treehole){addMsg('ai','🌙 树洞模式已开启。这里没有评判、没有说教，只有倾听和陪伴。想说什么都可以，我会认真听完每一句。');speak('树洞模式已开启，想说什么都可以，我会认真听完的。')}
+ else{addMsg('ai','树洞模式已关闭。不过你要记得，无论什么模式，我都在你身边哦。')}
+}
+const MOOD_RESP={
+'开心':'太好了！看到你开心，我这一整天都有意义啦～快说说遇到什么好事了？',
+'还行':'平稳的一天也很好呀，不惊不喜的日子，最适合养精蓄锐。晚上早点休息哦。',
+'一般':'嗯，平淡的日子偶尔会让人有点提不起劲…要不要和我聊点轻松的？或者我夸夸你？',
+'难过':'抱抱你…谢谢你愿意告诉我。难过的时候不用逼自己开心，想哭就哭一会儿，我陪着你。',
+'烦躁':'深呼吸～吸气4秒、屏住4秒、呼气6秒…烦躁就像手里的沙子，越用力越累，先让自己松一松。',
+'委屈':'呜呜，受委屈了呀…来，跟我说说，你的委屈我都接住。你没有做错什么，你的感受很重要。'};
+function renderMoodHist(){
+ const box=$('moodHist');
+ if(!moodLog.length){box.innerHTML='还没有打卡记录，今天来第一次吧～';return}
+ box.innerHTML='<b>最近记录：</b><br>'+moodLog.slice(-7).reverse().map(r=>'• '+r.date+' '+r.e+' '+r.m).join('<br>');
+}
+$('moodBtn').onclick=()=>{renderMoodHist();$('moodModal').classList.add('show')};
+$('moodClose').onclick=()=>$('moodModal').classList.remove('show');
+$('moodModal').onclick=e=>{if(e.target===$('moodModal'))$('moodModal').classList.remove('show')};
+document.querySelectorAll('.mood-btn').forEach(b=>b.onclick=()=>{
+ const m=b.dataset.m;
+ const icons={'开心':'😄','还行':'🙂','一般':'😐','难过':'😢','烦躁':'😡','委屈':'🥺'};
+ const today=new Date().toLocaleDateString('zh-CN',{month:'numeric',day:'numeric'});
+ moodLog=moodLog.filter(r=>r.date!==today);moodLog.push({date:today,m:m,e:icons[m]});
+ localStorage.setItem('luyao_moods',JSON.stringify(moodLog));
+ renderMoodHist();
+ $('moodModal').classList.remove('show');
+ burstHearts();
+ setEmotion(m==='开心'||m==='还行'?'happy':'sad');
+ const reply=MOOD_RESP[m];
+ addMsg('user','（心情打卡：'+icons[m]+' '+m+'）');
+ setTimeout(()=>{addMsg('ai',reply);speak(reply)},300);
+ toast('📔 今日心情已记录！');
+});
+
+$('sendBtn').onclick=()=>{handle($('textIn').value);$('textIn').value=''};
+$('textIn').addEventListener('keydown',e=>{if(e.key==='Enter'){handle($('textIn').value);$('textIn').value=''}});
+$('ttsBtn').onclick=()=>{cfg.tts=!cfg.tts;$('ttsBtn').textContent=cfg.tts?'🔊 语音':'🔇 语音';$('ttsBtn').classList.toggle('off',!cfg.tts);localStorage.setItem('luyao_cfg',JSON.stringify(cfg));if(!cfg.tts)speechSynthesis.cancel()};
+$('hugBtn').onclick=hug;
+$('praiseBtn').onclick=praise;
+$('treeBtn').onclick=toggleTree;
+$('clearBtn').onclick=()=>{history=[];localStorage.removeItem('luyao_hist');$('chatBox').innerHTML=''};
+$('memBtn').onclick=()=>{renderMemList();$('memModal').classList.add('show')};
+$('memClose').onclick=()=>$('memModal').classList.remove('show');
+$('memClear').onclick=()=>{if(confirm('确定清空路遥学会的全部知识吗？')){memories=[];saveMem();updateMem();renderMemList()}};
+$('memModal').onclick=e=>{if(e.target===$('memModal'))$('memModal').classList.remove('show')};
+$('character').onclick=()=>{const lines=['怎么啦？想我了呀？嘿嘿。','我在呢，一直都在～','戳我干嘛，痒痒的！','要不要试试点"抱抱"？我超会抱的！','今天也要记得对自己好一点哦。'];const l=lines[Math.floor(Math.random()*lines.length)];setEmotion('happy');addMsg('ai',l);speak(l)};
+
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+let rec=null;
+if(SR){rec=new SR();rec.lang='zh-CN';rec.interimResults=false;
+rec.onresult=e=>{handle(e.results[0][0].transcript)};
+rec.onend=()=>{$('micBtn').classList.remove('rec');if(state==='listening')setState('idle')};
+rec.onerror=()=>{$('micBtn').classList.remove('rec');setState('idle');addMsg('ai','（我好像没听清，你打字告诉我吧～）')};
+$('micBtn').onclick=()=>{try{rec.start();$('micBtn').classList.add('rec');setState('listening')}catch(e){rec.stop()}}}else{$('micBtn').title='当前浏览器不支持语音识别，请用Chrome/Edge'}
+
+$('openSet').onclick=()=>{$('cfgNick').value=cfg.nick;$('cfgPersona').value=cfg.persona;$('cfgKey').value=cfg.apiKey;loadVoices();$('modal').classList.add('show')};
+$('saveSet').onclick=()=>{cfg.nick=$('cfgNick').value.trim();cfg.persona=$('cfgPersona').value;cfg.apiKey=$('cfgKey').value.trim();cfg.voiceName=$('cfgVoice').value;localStorage.setItem('luyao_cfg',JSON.stringify(cfg));$('modal').classList.remove('show');addMsg('ai','设置保存好啦，我已经准备好了～');};
+$('modal').onclick=e=>{if(e.target===$('modal'))$('modal').classList.remove('show')};
+
+history.forEach(h=>{const d=document.createElement('div');d.className='msg '+h.role;d.textContent=h.text;$('chatBox').appendChild(d)});$('chatBox').scrollTop=99999;
+updateMem();setEmotion('happy');
+setTimeout(()=>{
+ const follow=troubleFollowUp();
+ const g=follow?follow:timeGreet();
+ addMsg('ai',g);speak(g);
+},600);
+</script>
+</body>
+</html>
